@@ -1,8 +1,6 @@
 const socket = new WebSocket('ws://localhost:8080/ws');
 
-socket.addEventListener('open', (event) => {
-
-});
+socket.addEventListener('open', () => {});
 
 socket.addEventListener('message', (event) => {
   document.getElementById('echo-output').value = event.data;
