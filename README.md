@@ -1,12 +1,12 @@
 # Rust LiveView
 
-The goal of this project is too experiment a [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) like experience for rust (and learn rust at the same time).
+The goal of this project is to experiment a [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) like experience for rust (and learn rust at the same time).
 
 This is a first start, totally not optimized and not usable at all
 
 ## Hacking on rust LiveView
 
-1. `yarn install && yarn build`
+1. `yarn install && yarn build` (`yarn build` is required each time JS changes for now)
 2. `cargo run`
 
 So far you will only a see a counter that you can increment or decrement. The entire "counter" component is overrided each times.
