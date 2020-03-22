@@ -5,13 +5,17 @@ mod responder;
 mod view;
 
 use actix::prelude::*;
-use actix_web::{middleware::Logger, web, get, App, HttpRequest, HttpServer, HttpResponse, Responder};
 use actix_files as fs;
+use actix_web::{
+    get, middleware::Logger, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 use actix_web_actors::ws;
 
 #[get("/")]
 async fn root() -> impl Responder {
-    HttpResponse::Ok().content_type("text/html").body(view::index_component(0))
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(view::index_component(0))
 }
 
 async fn ws(r: HttpRequest, stream: web::Payload) -> impl Responder {
@@ -26,27 +30,21 @@ impl Actor for Channel {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Channel {
-    fn handle(
-        &mut self,
-        msg: Result<ws::Message, ws::ProtocolError>,
-        ctx: &mut Self::Context,
-    ) {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => {
-                match message::decode(&text) {
-                    Ok(msg) => {
-                        println!("incoming {:?}", msg);
-                        match responder::response_for(&msg) {
-                            Some(a) => {
-                                println!("sending {:?}", a);
-                                ctx.text(a)
-                            },
-                            None => println!("unknown event")
+            Ok(ws::Message::Text(text)) => match message::decode(&text) {
+                Ok(msg) => {
+                    println!("incoming {:?}", msg);
+                    match responder::response_for(&msg) {
+                        Some(a) => {
+                            println!("sending {:?}", a);
+                            ctx.text(a)
                         }
-                    },
-                    Err(err) => println!("Error parsing incoming: {:?}", err)
+                        None => println!("unknown event"),
+                    }
                 }
+                Err(err) => println!("Error parsing incoming: {:?}", err),
             },
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
             _ => (),
