@@ -1,28 +1,31 @@
 extern crate env_logger;
 
+mod message;
+mod responder;
+mod view;
+
 use actix::prelude::*;
-use actix_web::{middleware::Logger, web, get, App, HttpRequest, HttpServer, Responder};
+use actix_web::{middleware::Logger, web, get, App, HttpRequest, HttpServer, HttpResponse, Responder};
 use actix_files as fs;
 use actix_web_actors::ws;
 
-#[get("/lol")]
+#[get("/")]
 async fn root() -> impl Responder {
-    return "hello world"
+    HttpResponse::Ok().content_type("text/html").body(view::index_component(0))
 }
 
 async fn ws(r: HttpRequest, stream: web::Payload) -> impl Responder {
-    let res = ws::start(MyWs {}, &r, stream);
+    let res = ws::start(Channel {}, &r, stream);
     res
 }
 
-struct MyWs;
+struct Channel;
 
-impl Actor for MyWs {
+impl Actor for Channel {
     type Context = ws::WebsocketContext<Self>;
 }
 
-/// Handler for ws::Message message
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Channel {
     fn handle(
         &mut self,
         msg: Result<ws::Message, ws::ProtocolError>,
@@ -30,7 +33,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
     ) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => ctx.text(text),
+            Ok(ws::Message::Text(text)) => {
+                match message::decode(&text) {
+                    Ok(msg) => {
+                        println!("incoming {:?}", msg);
+                        match responder::response_for(&msg) {
+                            Some(a) => {
+                                println!("sending {:?}", a);
+                                ctx.text(a)
+                            },
+                            None => println!("unknown event")
+                        }
+                    },
+                    Err(err) => println!("Error parsing incoming: {:?}", err)
+                }
+            },
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
             _ => (),
         }
@@ -45,12 +62,9 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(Logger::default())
+            .service(web::resource("/socket/websocket").route(web::get().to(ws)))
+            .service(fs::Files::new("/assets", "./assets/"))
             .service(root)
-            .service(web::resource("/ws").route(web::get().to(ws)))
-            .service(
-                // static files
-                fs::Files::new("/", "./static/").index_file("index.html"),
-            )
     })
     .bind("127.0.0.1:8080")?
     .run()
